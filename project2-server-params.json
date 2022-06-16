@@ -1,0 +1,30 @@
+[
+    {
+        "ParameterKey": "EnvironmentName",
+        "ParameterValue": "UdacityProjectTwo"
+    },
+    {
+        "ParameterKey": "myVPC",
+        "ParameterValue": "vpc-047527223f3ed7ff9"
+    },
+    {
+        "ParameterKey": "PUBSubnet1",
+        "ParameterValue": "subnet-0772232c13787ff5d"
+    },
+    {
+        "ParameterKey": "PUBSubnet2",
+        "ParameterValue": "subnet-080da41b8749e4d9c"
+    },
+    {
+        "ParameterKey": "PRIVSubnet1",
+        "ParameterValue": "subnet-0d259e6147b14cb87"
+    },
+    {
+        "ParameterKey": "PRIVSubnet2",
+        "ParameterValue": "subnet-04199dfc86acab480"
+    },
+    {
+        "ParameterKey": "AMItoUse",
+        "ParameterValue": "ami-0022f774911c1d690"
+    }
+]

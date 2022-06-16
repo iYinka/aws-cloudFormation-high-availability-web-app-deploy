@@ -1,0 +1,260 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Yinka / Udagram - This template deploys a temporary VPC for the second project
+Parameters:
+    EnvironmentName:
+        Description: An environment name that will be prefixed to resource names
+        Type: String
+    ProjectVpcCIDR:
+        Type: String
+    PublicSubnet1CIDR:
+        Type: String
+    PrivateSubnet1CIDR:
+        Type: String
+    PublicSubnet2CIDR:
+        Type: String
+    PrivateSubnet2CIDR:
+        Type: String
+    # Paramenters are entirely optional.
+    # but using them will make your cloudformation templates more reusable
+    # use them for things that may change over time, such as instance type,
+    # VPCs and so on.
+Resources:
+    # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+    # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
+    # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+
+    AppVPC:
+        Type: AWS::EC2::VPC
+        Properties:
+            CidrBlock: !Ref ProjectVpcCIDR
+            EnableDnsHostnames: true
+            Tags:
+                - Key: Name
+                  Value: "Project2 Main VPC"
+    UdagramS3Bucket:
+        Type: AWS::S3::Bucket
+        DeletionPolicy: Delete
+        Properties:
+            BucketName: !Sub "udagram-bucket-${AWS::StackName}-${AWS::Region}-${AWS::AccountId}"
+
+    InternetGW:
+        Type: AWS::EC2::InternetGateway
+    AttachInternetGateway:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            VpcId: !Ref AppVPC
+            InternetGatewayId: !Ref InternetGW
+
+    PublicSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            # Availability zone at your discretion or
+            # as a parameter
+            AvailabilityZone: !Select [0, !GetAZs ""]
+            CidrBlock: !Ref PublicSubnet1CIDR
+            MapPublicIpOnLaunch: true
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Public Subnet 1 (AZ1)
+            VpcId: !Ref AppVPC
+    PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: !Select [0, !GetAZs ""]
+            CidrBlock: !Ref PrivateSubnet1CIDR
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Private Subnet 2 (AZ1)
+            VpcId: !Ref AppVPC
+    PublicSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            # Availability zone at your discretion or
+            # as a parameter
+            AvailabilityZone: !Select [1, !GetAZs ""]
+            CidrBlock: !Ref PublicSubnet2CIDR
+            MapPublicIpOnLaunch: true
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Private Subnet 3 (AZ1)
+            VpcId: !Ref AppVPC
+    PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+            AvailabilityZone: !Select [1, !GetAZs ""]
+            CidrBlock: !Ref PrivateSubnet2CIDR
+            MapPublicIpOnLaunch: false
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Private Subnet 4 (AZ1)
+            VpcId: !Ref AppVPC
+
+    NATGateEIP1:
+        Type: AWS::EC2::EIP
+        DependsOn: AttachInternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: "Elastic IP(1) for our NATGate Gateway"
+    NATGateEIP2:
+        Type: AWS::EC2::EIP
+        DependsOn: AttachInternetGateway
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: "Elastic IP(2) for our NATGate Gateway"
+    NATGate1:
+        Type: AWS::EC2::NatGateway
+        Properties:
+            AllocationId:
+                Fn::GetAtt:
+                    - NATGateEIP1
+                    - AllocationId
+            SubnetId: !Ref PublicSubnet1
+            Tags:
+                - Key: Name
+                  Value: "NATGateway1 to be used by servers in the private subnet"
+    NATGate2:
+        Type: AWS::EC2::NatGateway
+        Properties:
+            AllocationId:
+                Fn::GetAtt:
+                    - NATGateEIP2
+                    - AllocationId
+            SubnetId: !Ref PublicSubnet2
+            Tags:
+                - Key: Name
+                  Value: "NATGateway2 to be used by servers in the private subnet"
+
+    PublicRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName} Public Route Table
+            VpcId: !Ref AppVPC
+    DefaultPublicRoute:
+        Type: AWS::EC2::Route
+        DependsOn: AttachInternetGateway
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId: !Ref InternetGW
+    AssociatePUBRT1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet1
+    AssociatePUBRT2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PublicRouteTable
+            SubnetId: !Ref PublicSubnet2
+
+    PrivateRouteTable:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            Tags:
+                - Key: Name
+                  Value: !Sub ${EnvironmentName}Private Route Table
+            VpcId: !Ref AppVPC
+    DefaultPrivateRoute:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            NatGatewayId: !Ref NATGate1
+    AssociatePRIVRT1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable
+            SubnetId: !Ref PrivateSubnet1
+    AssociatePRIVRT2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            RouteTableId: !Ref PrivateRouteTable
+            SubnetId: !Ref PrivateSubnet2
+
+    # PublicInternetRoute:
+    #     Type: AWS::EC2::Route
+    #     Properties:
+    #         RouteTableId:
+    #             Ref: PublicRouteTable
+    #         DestinationCidrBlock: 0.0.0.0/0
+    #         GatewayId:
+    #             Ref: InternetGW
+    PrivateInternetOutboundRoute:
+        Type: AWS::EC2::Route
+        Properties:
+            RouteTableId:
+                Ref: PrivateRouteTable
+            DestinationCidrBlock: 0.0.0.0/0
+            NatGatewayId:
+                Ref: NATGate1
+
+Outputs:
+    StackVPC:
+        Description: A reference to the created for the stack's VPC
+        Value: !Ref AppVPC
+        Export:
+            Name: !Sub ${EnvironmentName}-AppVPC
+    UdagramS3Bucket:
+        Description: A reference to the created for the stack's VPC
+        Value: !Ref UdagramS3Bucket
+        Export:
+            Name: !Sub ${EnvironmentName}-Bucket
+    PublicSubnets:
+        Description: Public Subnets for this stack
+        Value: !Join [":", [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+        Export:
+            Name: !Sub ${EnvironmentName}-PUB-NETS
+    PublicSubnet1:
+        Description: Public Subnet in AZ1
+        Value: !Ref PublicSubnet1
+        Export:
+            Name: !Sub ${EnvironmentName}-PUB1-SN
+    PublicSubnet2:
+        Description: Public Subnet in AZ2
+        Value: !Ref PublicSubnet2
+        Export:
+            Name: !Sub ${EnvironmentName}-PUB2-SN
+    PrivateSubnets:
+        Description: Private Subnets for this stack
+        Value: !Join [":", [!Ref PrivateSubnet1, !Ref PrivateSubnet2]]
+        Export:
+            Name: !Sub ${EnvironmentName}-PRIV-NETS
+    PrivateSubnet1:
+        Description: Private Subnet in AZ1
+        Value: !Ref PrivateSubnet1
+        Export:
+            Name: !Sub ${EnvironmentName}-PRIV1-SN
+    PrivateSubnet2:
+        Description: Private Subnet in AZ2
+        Value: !Ref PrivateSubnet2
+        Export:
+            Name: !Sub ${EnvironmentName}-PRIV2-SN
+    PublicRouteTable:
+        Description: Public Route for this stack
+        Value: !Ref PublicRouteTable
+    PrivateRouteTable:
+        Description: Private Route for this stack
+        Value: !Ref PrivateRouteTable
+
+    # This is also optional.
+    # Bonus points for useful outputs!
+    # for example, if you create a Load Balancer
+    # it's nice to output the URL to it here, so that we don't have to go to the console to get it.
+# Sample UserData
+# When creating your Launch Configuration, you may need a UserData script
+# here's one that you can use for Ubuntu Linux that will:
+# Install Apache Web Server, Start it, and create an index.html that will be displayed
+# when you visit the IP address of this server with your web browser
+#Here it is:
+#
+#          #!/bin/bash
+#          apt-get update -y
+#          apt-get install apache2 -y
+#          systemctl start apache2.service
+#          cd /var/www/html
+#          echo "Udacity Demo Web Server Up and Running!" > index.html
