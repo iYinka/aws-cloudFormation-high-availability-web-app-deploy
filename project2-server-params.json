@@ -5,23 +5,23 @@
     },
     {
         "ParameterKey": "myVPC",
-        "ParameterValue": "vpc-047527223f3ed7ff9"
+        "ParameterValue": "vpc-04e10ca9688c2f891"
     },
     {
         "ParameterKey": "PUBSubnet1",
-        "ParameterValue": "subnet-0772232c13787ff5d"
+        "ParameterValue": "subnet-0efbadc32974b4990"
     },
     {
         "ParameterKey": "PUBSubnet2",
-        "ParameterValue": "subnet-080da41b8749e4d9c"
+        "ParameterValue": "subnet-0e8a86479e13fb0d3"
     },
     {
         "ParameterKey": "PRIVSubnet1",
-        "ParameterValue": "subnet-0d259e6147b14cb87"
+        "ParameterValue": "subnet-013cc7b5f98e5cc31"
     },
     {
         "ParameterKey": "PRIVSubnet2",
-        "ParameterValue": "subnet-04199dfc86acab480"
+        "ParameterValue": "subnet-011862905088a26ca"
     },
     {
         "ParameterKey": "AMItoUse",
